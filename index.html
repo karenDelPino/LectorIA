@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aventura del Lector IA - Competitivo</title>
+    
+    <!-- Carga de Tailwind CSS y configuración de colores -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cosmic-blue': '#2563eb', 
+                        'star-yellow': '#fcd34d', 
+                        'galaxy-purple': '#8b5cf6', 
+                        'sky-green': '#10b981',   
+                        'slate-gray': '#64748b'   
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                        'fredoka': ['"Fredoka One"', 'cursive'] 
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #e0f7fa; }
+        .concept-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        .selected-paragraph {
+            background-color: #bfdbfe; 
+            border: 2px solid #3b82f6;
+        }
+        .stage-indicator {
+            @apply flex-1 text-center py-2 px-1 rounded-full relative transition duration-300 ease-in-out;
+        }
+        .stage-indicator.active {
+            @apply bg-star-yellow text-cosmic-blue font-bold shadow-xl border-2 border-cosmic-blue transform scale-105;
+        }
+        .stage-indicator.completed {
+            @apply bg-sky-green text-white font-bold shadow-lg;
+        }
+        .stage-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -10px; 
+            width: 20px;
+            height: 2px;
+            background-color: #cbd5e1; 
+            transform: translateY(-50%);
+            z-index: -1;
+        }
+        .stage-indicator:last-child::after {
+            display: none; 
+        }
+
+        /* Estilos para el texto resaltado durante la lectura */
+        .read-word {
+            background-color: #fca5a5; 
+            padding: 1px 0;
+            border-radius: 2px;
+        }
+        .correct-word {
+            background-color: #a7f3d0; 
+            padding: 1px 0;
+            border-radius: 2px;
+        }
+        .incorrect-word {
+            background-color: #fecaca; 
+            padding: 1px 0;
+            border-radius: 2px;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-xl concept-card p-6 sm:p-10">
+        
+        <!-- IMAGEN / LOGO (Agregado aquí, antes del progreso) -->
+        <div class="text-center mb-6">
+            <img src="img/Leia360.jpeg" alt="Logo LeIA 360" class="mx-auto max-w-xs sm:max-w-sm h-auto rounded-lg">
+        </div>
+
+        <!-- Barra de Progreso de Etapas -->
+        <div class="flex justify-between items-center mb-8 bg-gray-100 p-2 rounded-full concept-card">
+            <div id="stage-1-indicator" class="stage-indicator active">🚀 Planeta Despegue</div>
+            <div id="stage-2-indicator" class="stage-indicator">🛰️ Estación Lectora</div>
+            <div id="stage-3-indicator" class="stage-indicator">🔭 Informe Estelar</div>
+            <div id="stage-4-indicator" class="stage-indicator">🏆 Misión Cumplida</div>
+        </div>
+
+        <!-- Libros Ganados y Barra de Progreso -->
+        <div class="mb-6 p-4 bg-yellow-50 rounded-lg border-2 border-star-yellow concept-card">
+            <h2 class="text-xl font-fredoka text-cosmic-blue mb-2 flex items-center">
+                Meta de Libros: ¡A la Caza del Tesoro! 💰
+            </h2>
+            <div class="flex justify-between items-center mb-1 text-slate-gray text-sm font-semibold">
+                <span>Libros ganados:</span>
+                <span id="books-earned-display" class="text-cosmic-blue font-extrabold">Cargando...</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-4">
+                <div id="book-goal-bar" class="bg-star-yellow h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-right mt-1 text-slate-gray">Meta: 100 libros para canje</p>
+        </div>
+        
+        <!-- Botón de Lectura en Voz Alta -->
+        <div id="microphone-button-container" class="mb-6 text-center hidden">
+            <button id="microphone-button"
+                    onclick="openReadAloudModal()"
+                    class="bg-galaxy-purple hover:bg-purple-700 text-white font-bold py-3 px-10 rounded-lg transition duration-200 shadow-lg text-lg focus:outline-none focus:ring-4 focus:ring-purple-300 w-full sm:w-auto">
+                🎤 Leer en Voz Alta
+            </button>
+        </div>
+
+
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl sm:text-5xl font-fredoka text-cosmic-blue flex items-center justify-center">
+                <span class="mr-3">🌟</span> Aventura del Lector IA
+            </h1>
+            <p id="current-stage-title" class="text-xl font-semibold mt-2 text-galaxy-purple">Etapa: Planeta Despegue</p>
+        </header>
+
+        <!-- Contenido Dinámico de la App -->
+        <div id="app-content">
+            <!-- El contenido se inyecta aquí por JavaScript -->
+        </div>
+
+        <!-- Panel de Interacción IA (Oculto por defecto) -->
+        <div id="ai-interaction-panel" class="hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t-4 border-star-yellow shadow-2xl z-40 sm:p-6">
+            <h3 class="text-xl font-bold text-cosmic-blue mb-3 flex items-center">
+                <span class="mr-2">🤖</span> Tutor Estelar Gemini
+            </h3>
+            <div class="bg-blue-50 p-3 rounded-lg text-sm text-gray-700 mb-3 overflow-y-auto max-h-24">
+                <p id="selected-text-display" class="italic font-medium"></p>
+            </div>
+
+            <!-- Área de Pregunta y Respuesta IA y Mensajes de Feedback -->
+            <div id="ai-response-area" class="mb-4 p-3 rounded-lg hidden">
+                <p class="font-bold text-gray-600 mb-1">Mensaje Tutor:</p>
+                <p id="ai-response-text" class="text-gray-800"></p>
+            </div>
+
+            <input type="text" id="ai-query-input" placeholder="Pregunta sobre el texto seleccionado (e.g., ¿Qué es la fotosíntesis?)"
+                   class="w-full p-3 mb-3 border-2 border-gray-300 rounded-lg focus:border-cosmic-blue focus:ring-1 focus:ring-cosmic-blue text-sm">
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button onclick="askAI()" id="ask-button"
+                        class="flex-1 bg-cosmic-blue hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition duration-200">
+                    Preguntar
+                </button>
+                <button onclick="generateInferenceQuestion()" id="inference-button"
+                        class="flex-1 bg-galaxy-purple hover:bg-purple-700 text-white font-bold py-2 rounded-lg transition duration-200">
+                    Generar Pregunta
+                </button>
+                <button onclick="hideAIPanel()"
+                        class="bg-slate-gray hover:bg-gray-500 text-white font-bold py-2 rounded-lg transition duration-200 sm:w-1/4">
+                    Cerrar Panel
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Modal de Lectura en Voz Alta -->
+        <div id="read-aloud-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg p-6 max-w-lg w-full concept-card transform transition-all duration-300 scale-100">
+                <h3 class="text-2xl font-fredoka text-cosmic-blue mb-4 text-center">🎤 ¡Hora de Leer!</h3>
+                <div id="read-aloud-text-display" class="text-lg leading-relaxed text-gray-800 bg-blue-50 p-4 rounded-lg border mb-4 h-48 overflow-y-auto">
+                    <!-- Texto de lectura inyectado aquí -->
+                </div>
+                <p class="text-sm text-slate-gray mb-2">Tiempo de lectura: <span id="read-time" class="font-semibold text-cosmic-blue">0s</span></p>
+                <p class="text-sm text-slate-gray mb-4">Palabras correctas: <span id="correct-words-count" class="font-semibold text-sky-green">0</span></p>
+
+                <div class="flex gap-2 justify-center">
+                    <button id="start-read-aloud-button" onclick="startReading()" class="bg-sky-green hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+                        ▶️ Empezar
+                    </button>
+                    <button id="pause-read-aloud-button" onclick="togglePauseReading()" class="bg-star-yellow hover:bg-yellow-600 text-cosmic-blue font-bold py-2 px-4 rounded-lg hidden">
+                        ⏸️ Pausar
+                    </button>
+                    <button id="resume-read-aloud-button" onclick="togglePauseReading()" class="bg-star-yellow hover:bg-yellow-600 text-cosmic-blue font-bold py-2 px-4 rounded-lg hidden">
+                        ▶️ Reanudar
+                    </button>
+                    <button id="stop-read-aloud-button" onclick="stopReading()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg hidden">
+                        ⏹️ Terminar
+                    </button>
+                </div>
+                <button onclick="closeReadAloudModal()" class="mt-4 bg-slate-gray hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg w-full">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+
+
+        <!-- Botones de Navegación -->
+        <div class="mt-8 flex justify-between items-center">
+            <!-- El botón de micrófono fue movido arriba -->
+
+            <button id="next-button"
+                    onclick="nextStage()"
+                    class="ml-auto bg-star-yellow hover:bg-yellow-600 text-cosmic-blue font-bold py-3 px-6 rounded-lg transition duration-200 shadow-lg text-lg focus:outline-none focus:ring-4 focus:ring-yellow-300">
+                Siguiente Etapa
+            </button>
+        </div>
+
+    </div>
+
+    <script type="module">
+        // Importaciones de Firebase (necesarias para la persistencia)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuraciones Globales y Variables de Estado ---
+        const apiKey = "";
+        // Ya no se usa la URL de la API de Gemini para la simulación
+        
+        let db;
+        let auth;
+        let userId = 'guest';
+        let isAuthReady = false;
+        let booksEarned = 10; // Inicializamos en 10 para la demo
+        const BOOK_GOAL = 100; 
+        let userReadingLevel = ''; 
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        let currentStage = 1;
+        let selectedParagraph = ""; 
+        
+        // Variables para la lectura en voz alta
+        let recognition; 
+        let readingInterval;
+        let readingStartTime;
+        let currentWordIndex = 0;
+        let readingTextWords = [];
+        let correctWords = 0;
+        let isReadingPaused = false;
+        let speechRecognitionActive = false; 
+        let recognitionTimeout; 
+
+        // Definición de los Niveles de Lectura
+        const READING_LEVELS = {
+            pipita: { 
+                name: "Pipita 🟢", 
+                description: "Inspirado en Gonzalo Higuaín. Para quienes están dando sus primeros pasos en la lectura. Textos breves, vocabulario simple, apoyo visual.", 
+                color: "text-sky-green" 
+            },
+            dybala: { 
+                name: "Dybala 🟡", 
+                description: "Lectores en desarrollo. Comprenden estructuras más complejas, identifican paratextos y comienzan a inferir. Elegante y estratégico, como Paulo.", 
+                color: "text-star-yellow" 
+            },
+            messi: { 
+                name: "Messi 🔴", 
+                description: "Lectores expertos. Analizan, interpretan y reflexionan con profundidad. Dominan el juego de la lectura como Leo en la cancha.", 
+                color: "text-red-500" 
+            }
+        };
+
+        const ARTICLE_TEXT = `
+            El sol es la estrella de nuestro sistema solar. Es una esfera gigante de gas caliente que nos da luz y calor. Sin el calor del sol, la Tierra estaría cubierta de hielo. El sol tiene una gran importancia para la vida, ya que las plantas usan su energía para crecer a través de un proceso llamado fotosíntesis.
+            Mercurio es el planeta más cercano al sol y es muy pequeño. Gira rápidamente, pero su superficie está llena de cráteres debido a los impactos de rocas espaciales. En la noche, Mercurio es uno de los cuerpos más fríos, aunque de día es el más caliente.
+            Luego viene Venus, que es conocido como el "gemelo" de la Tierra por su tamaño similar. Sin embargo, su atmósfera es muy densa y tóxica, lo que crea un efecto invernadero extremo. Por eso, Venus es, de hecho, el planeta más caliente.
+            Finalmente, está la Tierra, nuestro hogar. Es el único planeta conocido con agua líquida en su superficie y una atmósfera que permite la vida. Nuestra Luna es su satélite natural, y juntos orbitamos alrededor del sol.
+        `;
+
+        const STAGES = {
+            1: {
+                title: "Planeta Despegue: ¿Qué esperamos?",
+                instruction: "Observa el título del texto. ¿De qué crees que se tratará tu aventura estelar? Escribe tu predicción:",
+                content: () => `
+                    <div class="p-4 bg-blue-100 rounded-lg mb-4 border-l-4 border-cosmic-blue">
+                        <p class="font-fredoka text-cosmic-blue text-xl">Título: Nuestro Sistema Solar</p>
+                    </div>
+                    <textarea id="stage-input" rows="4" class="w-full p-3 border-2 border-blue-300 rounded-lg focus:border-cosmic-blue focus:ring-1 focus:ring-cosmic-blue" placeholder="Mi predicción es que..."></textarea>
+                `
+            },
+            2: {
+                title: "Estación Lectora: Interactúa con el Texto",
+                instruction: "Haz clic en un párrafo para **activar el Tutor IA** o usa el botón del micrófono para **leer en voz alta**.",
+                content: () => `<div id="article-text" class="text-lg leading-relaxed text-gray-700 bg-gray-50 p-4 rounded-lg border"></div>`
+            },
+            3: {
+                title: "Informe Estelar: Completa tu Misión",
+                instruction: "¡Buen trabajo, astronauta! Ahora organiza la información para tu informe final. ¡Necesitas respuestas detalladas para ganar un libro! (Mínimo 20 caracteres cada una)",
+                content: () => `
+                    <div class="space-y-4">
+                        <label class="block text-gray-700 font-fredoka text-lg">a) ¡Resumen del viaje! (¿De qué trata la lectura?)</label>
+                        <textarea id="q1" rows="2" class="w-full p-3 border rounded-lg" placeholder="Escribe un resumen de la lectura."></textarea>
+                        
+                        <label class="block text-gray-700 font-fredoka text-lg">b) Describe los dos planetas más cercanos al Sol y explica por qué Venus es el más caliente.</label>
+                        <textarea id="q2" rows="3" class="w-full p-3 border rounded-lg" placeholder="Respuesta: Mercurio y Venus..."></textarea>
+
+                        <label class="block text-gray-700 font-fredoka text-lg">c) ¿Cuál es la importancia de la atmósfera en la Tierra y cómo se diferencia de la atmósfera de Venus?</label>
+                        <textarea id="q3" rows="3" class="w-full p-3 border rounded-lg" placeholder="Respuesta: La atmósfera de la Tierra es vital porque..."></textarea>
+                    </div>
+                `
+            },
+            4: {
+                title: "¡Misión Cumplida! 🎉",
+                instruction: "Has completado tu aventura estelar. ¡Eres un lector increíble! Revisa tu nivel de lectura basado en tu desempeño.",
+                content: () => {
+                    const levelData = READING_LEVELS[userReadingLevel] || READING_LEVELS.pipita; // Fallback
+                    return `
+                        <div class="text-center p-8 bg-sky-green rounded-lg text-white font-fredoka text-3xl mb-6">
+                            ¡Misión de Lectura Completada! ¡Ganaste un libro!
+                        </div>
+                        <div class="bg-blue-100 p-6 rounded-xl border-4 border-cosmic-blue concept-card">
+                            <h3 class="text-2xl font-fredoka text-cosmic-blue mb-3">Tu Nivel de Lector Estelar es:</h3>
+                            <p class="text-4xl font-extrabold ${levelData.color} mb-4">${levelData.name}</p>
+                            <p class="text-lg text-gray-700 border-l-4 border-cosmic-blue pl-4">
+                                ${levelData.description}
+                            </p>
+                            <p class="text-xs mt-4 text-slate-gray">
+                                (El nivel es asignado aleatoriamente en esta versión de prueba. ¡En la versión completa se basará en tu precisión de lectura!)
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        // --- Utilidad para Mostrar Mensajes (Reemplaza alert()) ---
+
+        function showMessage(text, isError = false) {
+            const messageArea = document.getElementById('ai-response-area');
+            const messageText = document.getElementById('ai-response-text');
+            const messageTitle = messageArea.querySelector('p:first-child');
+            
+            messageTitle.textContent = isError ? '❌ ¡Error de Misión!' : '✅ ¡Mensaje del Tutor!';
+            messageText.textContent = text;
+            messageArea.classList.remove('hidden', 'bg-red-100', 'bg-blue-50', 'bg-gray-100');
+            messageArea.classList.add(isError ? 'bg-red-100' : 'bg-blue-50');
+
+            // Ocultar el mensaje después de 4 segundos
+            setTimeout(() => {
+                if (messageArea.classList.contains('bg-red-100') || messageArea.classList.contains('bg-blue-50')) {
+                    messageArea.classList.add('hidden');
+                    // Restaurar el título para el uso normal de IA
+                    messageTitle.textContent = ' 🤖Estelar';
+                }
+            }, 4000);
+        }
+
+        // --- FIREBASE: Inicialización y Persistencia de Libros ---
+
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                    } else {
+                        userId = crypto.randomUUID();
+                    }
+                    isAuthReady = true;
+                    loadUserProgress();
+                });
+
+            } catch (error) {
+                console.error("Error al inicializar Firebase. Los libros no serán persistentes.", error);
+                document.getElementById('books-earned-display').textContent = 'Error de carga';
+                updateBooksUI(); // Asegurar que la UI se actualice con el valor inicial de 10
+            }
+        }
+
+        function getUserStatsDocRef() {
+            if (!db || !userId) return null;
+            return doc(db, 'artifacts', appId, 'users', userId, 'progress', 'stats');
+        }
+
+        async function loadUserProgress() {
+            if (!isAuthReady || !db) return;
+
+            try {
+                const docRef = getUserStatsDocRef();
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    // Si existe, usa el valor de la base de datos, sino usa el valor inicial de 10
+                    booksEarned = docSnap.data().booksEarned || 10;
+                } 
+                updateBooksUI(); 
+            } catch (e) {
+                console.error("Error al cargar el progreso: ", e);
+            }
+        }
+
+        async function saveBooksEarned(newCount) {
+            if (!isAuthReady || !db) return;
+
+            try {
+                const docRef = getUserStatsDocRef();
+                await setDoc(docRef, { booksEarned: newCount, userId: userId }, { merge: true });
+                booksEarned = newCount; 
+                updateBooksUI(); 
+            } catch (e) {
+                console.error("Error al guardar los libros: ", e);
+            }
+        }
+
+        function updateBooksUI() {
+            const booksDisplay = document.getElementById('books-earned-display');
+            const bookGoalBar = document.getElementById('book-goal-bar');
+
+            if (booksDisplay) {
+                const bookEmojis = '📚'.repeat(Math.min(booksEarned, 5)); 
+                booksDisplay.innerHTML = `${bookEmojis} ${booksEarned} libros`;
+                
+                if (booksEarned >= BOOK_GOAL) {
+                     booksDisplay.innerHTML = `🌟 ${bookEmojis} ${booksEarned} libros (¡Listo para canje!)`;
+                }
+
+                // Actualizar barra de progreso
+                const percentage = Math.min(100, (booksEarned / BOOK_GOAL) * 100);
+                bookGoalBar.style.width = `${percentage}%`;
+                
+                if (booksEarned >= BOOK_GOAL) {
+                    bookGoalBar.classList.remove('bg-star-yellow');
+                    bookGoalBar.classList.add('bg-sky-green');
+                } else {
+                    bookGoalBar.classList.remove('bg-sky-green');
+                    bookGoalBar.classList.add('bg-star-yellow');
+                }
+            }
+        }
+
+        async function awardBook() {
+            const newCount = booksEarned + 1;
+            await saveBooksEarned(newCount);
+
+            const message = newCount >= BOOK_GOAL 
+                ? "¡Misión cumplida! Has alcanzado la meta de 100 libros. ¡Excelente, astronauta!"
+                : `¡Ganaste un libro 📚! Tienes ${newCount} en tu biblioteca estelar. ¡Sigue así!`;
+            
+            showMessage(message, false);
+        }
+        
+        // --- Lógica de Niveles de Lectura ---
+        function determineReadingLevel() {
+            const levels = Object.keys(READING_LEVELS);
+            const randomIndex = Math.floor(Math.random() * levels.length);
+            userReadingLevel = levels[randomIndex];
+            return userReadingLevel;
+        }
+
+
+        // --- Lógica del Flujo de la App y Etapas ---
+
+        function updateStageIndicators() {
+            const stageNames = ["stage-1-indicator", "stage-2-indicator", "stage-3-indicator", "stage-4-indicator"];
+            stageNames.forEach((id, index) => {
+                const indicator = document.getElementById(id);
+                indicator.classList.remove('active', 'completed');
+                if (index + 1 === currentStage) {
+                    indicator.classList.add('active');
+                } else if (index + 1 < currentStage) {
+                    indicator.classList.add('completed');
+                }
+            });
+            document.getElementById('current-stage-title').textContent = `Etapa: ${STAGES[currentStage].title.split(':')[0]}`;
+        }
+
+        async function nextStage() {
+            // Validation for Stage 1
+            if (currentStage === 1) {
+                const prediction = document.getElementById('stage-input').value.trim();
+                if (prediction.length < 10) {
+                    showMessage("¡Ups! Escribe una predicción de al menos 10 caracteres antes de continuar con tu misión.", true);
+                    return;
+                }
+            }
+            
+            // Validation and Prize for Stage 3 (Informe Estelar)
+            if (currentStage === 3) {
+                const q1 = document.getElementById('q1').value.trim();
+                const q2 = document.getElementById('q2').value.trim();
+                const q3 = document.getElementById('q3').value.trim();
+                const MIN_CHARS = 20;
+
+                const q1Missing = Math.max(0, MIN_CHARS - q1.length);
+                const q2Missing = Math.max(0, MIN_CHARS - q2.length);
+                const q3Missing = Math.max(0, MIN_CHARS - q3.length);
+
+                if (q1Missing > 0 || q2Missing > 0 || q3Missing > 0) {
+                    let errorMessage = `¡Astronauta! Tus respuestas deben ser más detalladas (mínimo ${MIN_CHARS} caracteres cada una). `;
+                    if (q1Missing > 0) errorMessage += `Faltan ${q1Missing} caracteres en el Resumen (Q1). `;
+                    if (q2Missing > 0) errorMessage += `Faltan ${q2Missing} caracteres en la Pregunta B. `;
+                    if (q3Missing > 0) errorMessage += `Faltan ${q3Missing} caracteres en la Pregunta C.`;
+                    
+                    showMessage(errorMessage.trim(), true);
+                    return;
+                }
+                
+                // If validation is successful: award the prize and determine level
+                await awardBook(); 
+                determineReadingLevel(); 
+            }
+
+            // Clean up and advance
+            hideAIPanel();
+            if (speechRecognitionActive) { 
+                stopReading();
+            }
+            
+            // Advance the stage
+            if (currentStage < 4) {
+                currentStage++;
+                renderStage();
+                updateStageIndicators();
+            }
+        }
+
+        function renderStage() {
+            const stageData = STAGES[currentStage];
+            document.getElementById('app-content').innerHTML = `
+                <p class="text-slate-gray mb-4 text-lg italic">${stageData.instruction}</p>
+                ${stageData.content()}
+            `;
+
+            const nextButton = document.getElementById('next-button');
+            const micButtonContainer = document.getElementById('microphone-button-container');
+
+            if (currentStage === 2) {
+                micButtonContainer.classList.remove('hidden'); // Show container
+                nextButton.textContent = 'Siguiente Etapa';
+            } else {
+                micButtonContainer.classList.add('hidden'); // Hide container
+            }
+
+            if (currentStage === 3) {
+                nextButton.textContent = 'Enviar Informe Estelar';
+            } else if (currentStage === 4) {
+                nextButton.style.display = 'none';
+            } else {
+                 nextButton.style.display = 'block';
+            }
+
+            if (currentStage === 2) {
+                prepareInteractiveText();
+            }
+        }
+
+        // --- Lógica para la Etapa 2 (Interacción IA) ---
+
+        function prepareInteractiveText() {
+            const textDiv = document.getElementById('article-text');
+            const paragraphs = ARTICLE_TEXT.trim().split('\n').map(p => p.trim()).filter(p => p.length > 0);
+            let formattedHtml = '';
+
+            paragraphs.forEach((paragraph, index) => {
+                formattedHtml += `<p id="p-${index}" class="paragraph mb-4 p-3 rounded-lg border border-gray-300 hover:border-cosmic-blue cursor-pointer transition duration-150 bg-white" onclick="selectParagraph(this)">${paragraph}</p>`;
+            });
+
+            textDiv.innerHTML = formattedHtml;
+        }
+
+        function selectParagraph(element) {
+            document.querySelectorAll('.paragraph').forEach(p => p.classList.remove('selected-paragraph'));
+            element.classList.add('selected-paragraph');
+
+            selectedParagraph = element.textContent.trim();
+            document.getElementById('selected-text-display').textContent = selectedParagraph;
+
+            showAIPanel();
+        }
+
+        function showAIPanel() {
+            document.getElementById('ai-interaction-panel').classList.remove('hidden');
+            document.getElementById('ai-response-area').classList.add('hidden');
+            document.getElementById('ai-query-input').value = '';
+        }
+
+        function hideAIPanel() {
+            document.getElementById('ai-interaction-panel').classList.add('hidden');
+            document.querySelectorAll('.paragraph').forEach(p => p.classList.remove('selected-paragraph'));
+            selectedParagraph = "";
+        }
+
+        // --- Lógica del Tutor IA Ficticio (Mock) ---
+
+        function setLoading(isLoading, buttonId) {
+            const button = document.getElementById(buttonId);
+            button.disabled = isLoading;
+            button.textContent = isLoading ? 'Cargando...' : (buttonId === 'ask-button' ? 'Preguntar' : 'Generar Pregunta');
+            button.classList.toggle('opacity-50', isLoading);
+        }
+
+        // Función MOCK que simula la llamada al API
+        async function callGeminiAPI(userQuery, systemInstruction, buttonId) {
+            if (!selectedParagraph) {
+                showMessage("Por favor, selecciona un párrafo antes de preguntar al Tutor Estelar.", true);
+                return;
+            }
+
+            setLoading(true, buttonId);
+
+            // Simulación de respuesta después de 1.5 segundos
+            setTimeout(() => {
+                let responseText = "🔎";
+                
+                if (buttonId === 'ask-button') {
+                    const cleanQuery = userQuery.toLowerCase();
+                    if (cleanQuery.includes('sol') || cleanQuery.includes('estrella')) {
+                        responseText += `Tu pregunta es excelente. El párrafo dice que el Sol es una esfera gigante de gas caliente que nos da luz y calor. ¡Es la estrella de nuestro sistema solar!`;
+                    } else if (cleanQuery.includes('mercurio') || cleanQuery.includes('pequeño')) {
+                        responseText += `¡Buena observación! Mercurio es el más cercano al Sol y está lleno de cráteres por las rocas espaciales. ¡Qué planeta tan rápido!`;
+                    } else {
+                        responseText += `Tu pregunta sobre "${userQuery}" es muy interesante. Según el texto que seleccionaste, el tema central es el sistema solar. ¡Sigue explorando!`;
+                    }
+                } else if (buttonId === 'inference-button') {
+                    responseText = "Pregunta de Inferiencia: Si Venus es el planeta más caliente a pesar de no ser el más cercano al Sol, ¿qué nos dice esto sobre la importancia de la atmósfera? ¿Qué opinas? 🤔";
+                }
+                
+                document.getElementById('ai-response-text').textContent = responseText;
+                document.getElementById('ai-response-area').classList.remove('hidden', 'bg-red-100', 'bg-blue-50');
+                document.getElementById('ai-response-area').classList.add('bg-gray-100');
+                
+                setLoading(false, buttonId);
+                
+            }, 1500); // Simular tiempo de carga
+        }
+
+        async function askAI() {
+            const query = document.getElementById('ai-query-input').value.trim();
+            if (!query) {
+                showMessage("Por favor, escribe tu pregunta para el Tutor Estelar.", true);
+                return;
+            }
+            // En el prototipo, solo enviamos la consulta al mock
+            await callGeminiAPI(query, "Instrucción mock (no usada)", 'ask-button');
+        }
+
+        async function generateInferenceQuestion() {
+            // En el prototipo, solo enviamos la consulta al mock
+            await callGeminiAPI("Genera una pregunta de inferencia.", "Instrucción mock (no usada)", 'inference-button');
+        }
+
+        // --- Lógica de Lectura en Voz Alta (Web Speech API) ---
+
+        function openReadAloudModal() {
+            if (currentStage !== 2) return; 
+
+            const fullText = ARTICLE_TEXT.replace(/\s+/g, ' ').trim();
+            readingTextWords = fullText.split(' ').filter(word => word.length > 0);
+            currentWordIndex = 0;
+            correctWords = 0;
+            isReadingPaused = false;
+
+            document.getElementById('read-time').textContent = '0s';
+            document.getElementById('correct-words-count').textContent = '0';
+
+            const displayDiv = document.getElementById('read-aloud-text-display');
+            displayDiv.innerHTML = readingTextWords.map((word, index) => `<span id="word-${index}">${word}</span>`).join(' ');
+
+            document.getElementById('start-read-aloud-button').classList.remove('hidden');
+            document.getElementById('pause-read-aloud-button').classList.add('hidden');
+            document.getElementById('resume-read-aloud-button').classList.add('hidden');
+            document.getElementById('stop-read-aloud-button').classList.add('hidden');
+
+            document.getElementById('read-aloud-modal').classList.remove('hidden');
+        }
+
+        function closeReadAloudModal() {
+            stopReading(); 
+            document.getElementById('read-aloud-modal').classList.add('hidden');
+        }
+
+        function startReading() {
+            if (!('webkitSpeechRecognition' in window)) {
+                showMessage("¡Oh no! Tu navegador no soporta la lectura en voz alta. Prueba con Google Chrome.", true);
+                return;
+            }
+
+            document.getElementById('start-read-aloud-button').classList.add('hidden');
+            document.getElementById('pause-read-aloud-button').classList.remove('hidden');
+            document.getElementById('stop-read-aloud-button').classList.remove('hidden');
+
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'es-ES'; 
+            speechRecognitionActive = true;
+
+            function resetRecognitionTimeout() {
+                clearTimeout(recognitionTimeout);
+                recognitionTimeout = setTimeout(() => {
+                    if (speechRecognitionActive && !isReadingPaused) { 
+                        recognition.stop();
+                    }
+                }, 5000); 
+            }
+
+            recognition.onstart = () => {
+                readingStartTime = Date.now();
+                readingInterval = setInterval(updateReadTime, 1000);
+                resetRecognitionTimeout(); 
+            };
+
+            recognition.onresult = (event) => {
+                resetRecognitionTimeout(); 
+
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                }
+                processSpeech(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Error en el reconocimiento de voz:", event.error);
+                if (event.error === 'not-allowed') {
+                    showMessage("¡Necesito permiso para usar tu micrófono! Por favor, actívalo en la configuración de tu navegador.", true);
+                } 
+                speechRecognitionActive = false;
+                clearTimeout(recognitionTimeout);
+                clearInterval(readingInterval);
+                document.getElementById('start-read-aloud-button').classList.remove('hidden');
+                document.getElementById('pause-read-aloud-button').classList.add('hidden');
+                document.getElementById('resume-read-aloud-button').classList.add('hidden');
+                document.getElementById('stop-read-aloud-button').classList.add('hidden');
+            };
+
+            recognition.onend = () => {
+                if (speechRecognitionActive && !isReadingPaused && currentWordIndex < readingTextWords.length) { 
+                    // Reiniciar automáticamente si no fue pausado manualmente y la lectura no ha terminado
+                    recognition.start();
+                }
+            };
+
+            recognition.start();
+        }
+
+        function togglePauseReading() {
+            if (isReadingPaused) {
+                recognition.start();
+                isReadingPaused = false;
+                document.getElementById('resume-read-aloud-button').classList.add('hidden');
+                document.getElementById('pause-read-aloud-button').classList.remove('hidden');
+                readingStartTime = Date.now() - (performance.now() - readingStartTime); 
+                readingInterval = setInterval(updateReadTime, 1000);
+            } else {
+                recognition.stop();
+                isReadingPaused = true;
+                document.getElementById('pause-read-aloud-button').classList.add('hidden');
+                document.getElementById('resume-read-aloud-button').classList.remove('hidden');
+                clearInterval(readingInterval);
+                clearTimeout(recognitionTimeout);
+            }
+        }
+
+        function stopReading() {
+            if (recognition) {
+                recognition.stop();
+                speechRecognitionActive = false;
+            }
+            clearInterval(readingInterval);
+            clearTimeout(recognitionTimeout);
+            
+            // Reiniciar el estado visual
+            currentWordIndex = 0;
+            correctWords = 0;
+            document.getElementById('read-time').textContent = '0s';
+            document.getElementById('correct-words-count').textContent = '0';
+            // Vuelve a pintar el texto sin clases de resaltado
+            if (readingTextWords.length > 0) {
+                 document.getElementById('read-aloud-text-display').innerHTML = readingTextWords.map((word, index) => `<span id="word-${index}">${word}</span>`).join(' ');
+            }
+            
+
+            document.getElementById('start-read-aloud-button').classList.remove('hidden');
+            document.getElementById('pause-read-aloud-button').classList.add('hidden');
+            document.getElementById('resume-read-aloud-button').classList.add('hidden');
+            document.getElementById('stop-read-aloud-button').classList.add('hidden');
+        }
+
+        function updateReadTime() {
+            const elapsed = Math.floor((Date.now() - readingStartTime) / 1000);
+            document.getElementById('read-time').textContent = `${elapsed}s`;
+        }
+
+        function processSpeech(transcript) {
+            const spokenWords = transcript.toLowerCase().split(' ').filter(word => word.length > 0);
+
+            for (let i = 0; i < spokenWords.length; i++) {
+                const spokenWord = spokenWords[i].replace(/[.,!?;:]/g, ''); 
+                const targetWord = readingTextWords[currentWordIndex] ? readingTextWords[currentWordIndex].toLowerCase().replace(/[.,!?;:]/g, '') : null;
+
+                if (targetWord && spokenWord === targetWord) {
+                    const wordSpan = document.getElementById(`word-${currentWordIndex}`);
+                    if (wordSpan) {
+                        wordSpan.classList.remove('read-word', 'incorrect-word');
+                        wordSpan.classList.add('correct-word');
+                        correctWords++;
+                        document.getElementById('correct-words-count').textContent = correctWords;
+                    }
+                    currentWordIndex++;
+                } else if (targetWord) {
+                    // Marcar como incorrecta si se salta o dice algo diferente
+                    const wordSpan = document.getElementById(`word-${currentWordIndex}`);
+                    if (wordSpan && !wordSpan.classList.contains('correct-word')) { 
+                        wordSpan.classList.remove('read-word');
+                        wordSpan.classList.add('incorrect-word');
+                        // No avanzamos currentWordIndex aquí, se espera que intente la misma palabra.
+                    }
+                }
+            }
+
+            // Resaltar la siguiente palabra a leer
+            document.querySelectorAll('#read-aloud-text-display span').forEach(span => {
+                if (!span.classList.contains('correct-word') && !span.classList.contains('incorrect-word')) {
+                     span.classList.remove('read-word');
+                }
+            });
+
+            if (currentWordIndex < readingTextWords.length) {
+                const nextWordSpan = document.getElementById(`word-${currentWordIndex}`);
+                if (nextWordSpan) {
+                    nextWordSpan.classList.add('read-word');
+                    nextWordSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                stopReading();
+                showMessage("¡Felicidades, astronauta! Has terminado de leer el texto. ¡Excelente trabajo!");
+            }
+        }
+
+        // Exponer funciones globales para el uso de `onclick`
+        window.nextStage = nextStage;
+        window.openReadAloudModal = openReadAloudModal;
+        window.closeReadAloudModal = closeReadAloudModal;
+        window.startReading = startReading;
+        window.togglePauseReading = togglePauseReading;
+        window.stopReading = stopReading;
+        window.askAI = askAI;
+        window.generateInferenceQuestion = generateInferenceQuestion;
+        window.hideAIPanel = hideAIPanel;
+        window.selectParagraph = selectParagraph;
+
+        // --- Inicialización ---
+        window.onload = () => {
+            initFirebase();
+            renderStage();
+            updateStageIndicators();
+        };
+
+    </script>
+</body>
+</html>
